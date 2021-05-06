@@ -1,6 +1,6 @@
 # httpchain
 
-[![GoDoc](https://pkg.go.dev/badge/github.com/payfazz/httpchain/v2)](https://pkg.go.dev/github.com/payfazz/httpchain/v2)
+[![GoDoc](https://pkg.go.dev/badge/github.com/payfazz/httpchain)](https://pkg.go.dev/github.com/payfazz/httpchain)
 
 Package httpchain
 
