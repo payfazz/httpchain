@@ -47,88 +47,104 @@ func intoMiddlewares(as ...interface{}) []middleware {
 			continue
 		}
 
-		aVal := reflect.ValueOf(a)
-		aTyp := aVal.Type()
-
-		// func(http.HandlerFunc) http.HandlerFunc
-		if addAsFuncFunc(&ret, aVal, aTyp) {
+		if addAsMiddleware(&ret, a) {
 			continue
 		}
 
-		// http.HandlerFunc
-		if addAsFunc(&ret, aVal, aTyp) {
+		if addAsSlice(&ret, a) {
+			continue
+		}
+
+		if addAsLastMiddleware(&ret, a) {
 			break
 		}
 
-		// http.Handler
-		if addAsHandler(&ret, aVal, aTyp) {
-			break
-		}
-
-		// func(*http.Request) http.HandlerFunc
-		if addAsFuncGen(&ret, aVal, aTyp) {
-			break
-		}
-
-		switch aTyp.Kind() {
-		case reflect.Slice, reflect.Array:
-			bs := make([]interface{}, aVal.Len())
-			for i := 0; i < aVal.Len(); i++ {
-				bs[i] = aVal.Index(i).Interface()
-			}
-			ret = append(ret, intoMiddlewares(bs...)...)
-		default:
-			panic("invalid argument: can't process value with type: " + aTyp.String())
-		}
+		panic("invalid argument: can't process value with type: " + reflect.TypeOf(a).String())
 	}
 	return ret
 }
 
-func addAsFuncFunc(ret *[]middleware, aVal reflect.Value, aTyp reflect.Type) bool {
+func addAsMiddleware(ret *[]middleware, a interface{}) bool {
 	var b func(http.HandlerFunc) http.HandlerFunc
-	bVal := reflect.ValueOf(&b).Elem()
-	bTyp := bVal.Type()
-	if aTyp.ConvertibleTo(bTyp) {
-		bVal.Set(aVal.Convert(bTyp))
+	if setIfConvertible(a, &b) {
 		*ret = append(*ret, b)
 		return true
 	}
 	return false
 }
 
-func addAsFunc(ret *[]middleware, aVal reflect.Value, aTyp reflect.Type) bool {
+func addAsSlice(ret *[]middleware, a interface{}) bool {
+	switch reflect.TypeOf(a).Kind() {
+	case reflect.Slice, reflect.Array:
+		aVal := reflect.ValueOf(a)
+		bs := make([]interface{}, aVal.Len())
+		for i := 0; i < aVal.Len(); i++ {
+			bs[i] = aVal.Index(i).Interface()
+		}
+		*ret = append(*ret, intoMiddlewares(bs...)...)
+		return true
+	default:
+		return false
+	}
+}
+func addAsLastMiddleware(ret *[]middleware, a interface{}) bool {
+	if addAsHandlerFunc(ret, a) {
+		return true
+	}
+
+	if addAsHandler(ret, a) {
+		return true
+	}
+
+	if addAsHandlerFuncGen(ret, a) {
+		return true
+	}
+
+	return false
+}
+
+func addAsHandlerFunc(ret *[]middleware, a interface{}) bool {
 	var b http.HandlerFunc
-	bVal := reflect.ValueOf(&b).Elem()
-	bTyp := bVal.Type()
-	if aTyp.ConvertibleTo(bTyp) {
-		bVal.Set(aVal.Convert(bTyp))
-		*ret = append(*ret, func(next http.HandlerFunc) http.HandlerFunc { return b })
-		return true
-	}
-	return false
-}
-
-func addAsHandler(ret *[]middleware, aVal reflect.Value, aTyp reflect.Type) bool {
-	var b http.Handler
-	bVal := reflect.ValueOf(&b).Elem()
-	bTyp := bVal.Type()
-	if aTyp.ConvertibleTo(bTyp) {
-		bVal.Set(aVal.Convert(bTyp))
-		*ret = append(*ret, func(next http.HandlerFunc) http.HandlerFunc { return b.ServeHTTP })
-		return true
-	}
-	return false
-}
-
-func addAsFuncGen(ret *[]middleware, aVal reflect.Value, aTyp reflect.Type) bool {
-	var b func(*http.Request) http.HandlerFunc
-	bVal := reflect.ValueOf(&b).Elem()
-	bTyp := bVal.Type()
-	if aTyp.ConvertibleTo(bTyp) {
-		bVal.Set(aVal.Convert(bTyp))
+	if setIfConvertible(a, &b) {
 		*ret = append(*ret, func(next http.HandlerFunc) http.HandlerFunc {
-			return func(w http.ResponseWriter, r *http.Request) { b(r)(w, r) }
+			return b
 		})
+		return true
+	}
+	return false
+}
+
+func addAsHandler(ret *[]middleware, a interface{}) bool {
+	var b http.Handler
+	if setIfConvertible(a, &b) {
+		*ret = append(*ret, func(next http.HandlerFunc) http.HandlerFunc {
+			return b.ServeHTTP
+		})
+		return true
+	}
+	return false
+}
+
+func addAsHandlerFuncGen(ret *[]middleware, a interface{}) bool {
+	var b func(*http.Request) http.HandlerFunc
+	if setIfConvertible(a, &b) {
+		*ret = append(*ret, func(next http.HandlerFunc) http.HandlerFunc {
+			return func(w http.ResponseWriter, r *http.Request) {
+				b(r)(w, r)
+			}
+		})
+		return true
+	}
+	return false
+}
+
+func setIfConvertible(from interface{}, toPtr interface{}) bool {
+	fromVal := reflect.ValueOf(from)
+	fromType := fromVal.Type()
+	toVal := reflect.ValueOf(toPtr).Elem()
+	toType := toVal.Type()
+	if fromType.ConvertibleTo(toType) {
+		toVal.Set(fromVal.Convert(toType))
 		return true
 	}
 	return false
