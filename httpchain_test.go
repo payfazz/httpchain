@@ -36,7 +36,7 @@ func check(t *testing.T, handler interface{}) {
 		},
 		genMiddleware("6"),
 		handler,
-		func(w http.ResponseWriter, r *http.Request) {
+		func(http.HandlerFunc) http.HandlerFunc {
 			panic("should not go here")
 		},
 	)
@@ -109,5 +109,33 @@ func TestDoc(t *testing.T) {
 
 	if !reflect.DeepEqual(res1, res2) {
 		t.Errorf("Chain should have same behaviour as manual chaining by hand")
+	}
+}
+
+func TestHandlerInMiddle(t *testing.T) {
+	gotPanic := false
+
+	identityMiddleware := func(next http.HandlerFunc) http.HandlerFunc { return next }
+	panicMiddleware := func(http.HandlerFunc) http.HandlerFunc { panic("should not go here") }
+	handler := func(http.ResponseWriter, *http.Request) {}
+	func() {
+		defer func() { gotPanic = recover() != nil }()
+		httpchain.Chain(
+			identityMiddleware,
+			[]interface{}{
+				identityMiddleware,
+				[]interface{}{
+					identityMiddleware,
+					handler,
+					panicMiddleware,
+				},
+				panicMiddleware,
+			},
+			panicMiddleware,
+		)
+	}()
+
+	if gotPanic {
+		t.Errorf("should not panic")
 	}
 }
