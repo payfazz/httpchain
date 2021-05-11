@@ -21,7 +21,7 @@ type middleware = func(http.HandlerFunc) http.HandlerFunc
 // 	http.HandlerFunc
 // 	http.Handler
 // 	func(*http.Request) http.HandlerFunc
-// (the last one is from https://pkg.go.dev/github.com/payfazz/go-handler/v2)
+// 	func(http.ResponseWriter, *http.Request) error
 //
 // when you have following code
 // 	var h http.HandlerFunc
@@ -79,6 +79,10 @@ func addAsLastMiddleware(ret *[]middleware, a interface{}) bool {
 		return true
 	}
 
+	if addAsHandlerFuncWithErr(ret, a) {
+		return true
+	}
+
 	return false
 }
 
@@ -110,6 +114,19 @@ func addAsHandlerFuncGen(ret *[]middleware, a interface{}) bool {
 		*ret = append(*ret, func(http.HandlerFunc) http.HandlerFunc {
 			return func(w http.ResponseWriter, r *http.Request) {
 				b(r)(w, r)
+			}
+		})
+		return true
+	}
+	return false
+}
+
+func addAsHandlerFuncWithErr(ret *[]middleware, a interface{}) bool {
+	var b func(http.ResponseWriter, *http.Request) error
+	if setIfConvertible(a, &b) {
+		*ret = append(*ret, func(http.HandlerFunc) http.HandlerFunc {
+			return func(w http.ResponseWriter, r *http.Request) {
+				b(w, r)
 			}
 		})
 		return true

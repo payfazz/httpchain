@@ -70,6 +70,9 @@ func TestChain(t *testing.T) {
 
 	// for func(*http.Request) http.HandlerFunc
 	check(t, func(*http.Request) http.HandlerFunc { return testHandler })
+
+	// for func(http.ResponseWriter, *http.Request) error
+	check(t, func(w http.ResponseWriter, r *http.Request) error { testHandler(w, r); return nil })
 }
 
 func TestInvalidChain(t *testing.T) {
