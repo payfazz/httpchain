@@ -14,6 +14,9 @@ type middleware = func(http.HandlerFunc) http.HandlerFunc
 //
 // Middleware is any value that have following type
 // 	func(next http.HandlerFunc) http.HandlerFunc
+// 	func(next http.Handler) http.Handler
+// 	func(next http.HandlerFunc) http.Handler
+// 	func(next http.Handler) http.HandlerFunc
 //
 // you can pass multiple middleware, slice/array of middlewares, or combination of them
 //
@@ -58,79 +61,76 @@ func intoMiddlewares(as []interface{}) []middleware {
 }
 
 func addAsMiddleware(ret *[]middleware, a interface{}) bool {
-	var b func(http.HandlerFunc) http.HandlerFunc
-	if setIfConvertible(a, &b) {
-		*ret = append(*ret, b)
+	var func_func func(http.HandlerFunc) http.HandlerFunc
+	if setIfConvertible(a, &func_func) {
+		*ret = append(*ret, func_func)
 		return true
 	}
+
+	var iface_iface func(http.Handler) http.Handler
+	if setIfConvertible(a, &iface_iface) {
+		*ret = append(*ret, func(next http.HandlerFunc) http.HandlerFunc {
+			return iface_iface(next).ServeHTTP
+		})
+		return true
+	}
+
+	var func_iface func(http.HandlerFunc) http.Handler
+	if setIfConvertible(a, &func_iface) {
+		*ret = append(*ret, func(next http.HandlerFunc) http.HandlerFunc {
+			return func_iface(next).ServeHTTP
+		})
+		return true
+	}
+
+	var iface_func func(http.Handler) http.HandlerFunc
+	if setIfConvertible(a, &iface_func) {
+		*ret = append(*ret, func(next http.HandlerFunc) http.HandlerFunc {
+			return iface_func(next)
+		})
+		return true
+	}
+
 	return false
 }
 
 func addAsLastMiddleware(ret *[]middleware, a interface{}) bool {
-	if addAsHandlerFunc(ret, a) {
-		return true
-	}
-
-	if addAsHandler(ret, a) {
-		return true
-	}
-
-	if addAsHandlerFuncGen(ret, a) {
-		return true
-	}
-
-	if addAsHandlerFuncWithErr(ret, a) {
-		return true
-	}
-
-	return false
-}
-
-func addAsHandlerFunc(ret *[]middleware, a interface{}) bool {
-	var b http.HandlerFunc
-	if setIfConvertible(a, &b) {
+	var handlerfunc http.HandlerFunc
+	if setIfConvertible(a, &handlerfunc) {
 		*ret = append(*ret, func(http.HandlerFunc) http.HandlerFunc {
-			return b
+			return handlerfunc
 		})
 		return true
 	}
-	return false
-}
 
-func addAsHandler(ret *[]middleware, a interface{}) bool {
-	var b http.Handler
-	if setIfConvertible(a, &b) {
+	var handler http.Handler
+	if setIfConvertible(a, &handler) {
 		*ret = append(*ret, func(http.HandlerFunc) http.HandlerFunc {
-			return b.ServeHTTP
+			return handler.ServeHTTP
 		})
 		return true
 	}
-	return false
-}
 
-func addAsHandlerFuncGen(ret *[]middleware, a interface{}) bool {
-	var b func(*http.Request) http.HandlerFunc
-	if setIfConvertible(a, &b) {
+	var req_handlerfunc func(*http.Request) http.HandlerFunc
+	if setIfConvertible(a, &req_handlerfunc) {
 		*ret = append(*ret, func(http.HandlerFunc) http.HandlerFunc {
 			return func(w http.ResponseWriter, r *http.Request) {
-				b(r)(w, r)
+				req_handlerfunc(r)(w, r)
 			}
 		})
 		return true
 	}
-	return false
-}
 
-func addAsHandlerFuncWithErr(ret *[]middleware, a interface{}) bool {
-	var b func(http.ResponseWriter, *http.Request) error
-	if setIfConvertible(a, &b) {
+	var handlerfunc_err func(http.ResponseWriter, *http.Request) error
+	if setIfConvertible(a, &handlerfunc_err) {
 		*ret = append(*ret, func(http.HandlerFunc) http.HandlerFunc {
 			return func(w http.ResponseWriter, r *http.Request) {
-				b(w, r)
+				handlerfunc_err(w, r)
 			}
 		})
 		return true
 	}
+
 	return false
 }
 

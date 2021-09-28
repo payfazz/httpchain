@@ -142,3 +142,64 @@ func TestHandlerInMiddle(t *testing.T) {
 		t.Errorf("should not panic")
 	}
 }
+
+func checkBody(t *testing.T, expected string, h http.HandlerFunc) {
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil)
+	h(res, req)
+
+	if res.Body.String() != expected {
+		t.Errorf("invalid res body")
+	}
+}
+
+func TestIfaceIface(t *testing.T) {
+	h := httpchain.Chain(
+		func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprint(w, "1")
+				next.ServeHTTP(w, r)
+				fmt.Fprint(w, "3")
+			})
+		},
+		func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, "2")
+		},
+	)
+
+	checkBody(t, "123", h)
+}
+
+func TestFuncIface(t *testing.T) {
+	h := httpchain.Chain(
+		func(next http.HandlerFunc) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprint(w, "1")
+				next.ServeHTTP(w, r)
+				fmt.Fprint(w, "3")
+			})
+		},
+		func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, "2")
+		},
+	)
+
+	checkBody(t, "123", h)
+}
+
+func TestIfaceFunc(t *testing.T) {
+	h := httpchain.Chain(
+		func(next http.Handler) http.HandlerFunc {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprint(w, "1")
+				next.ServeHTTP(w, r)
+				fmt.Fprint(w, "3")
+			})
+		},
+		func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, "2")
+		},
+	)
+
+	checkBody(t, "123", h)
+}
