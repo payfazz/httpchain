@@ -51,7 +51,7 @@ func intoMiddlewares(as []interface{}) []middleware {
 			continue
 		}
 
-		if addAsLastMiddleware(&ret, a) {
+		if addAsHandler(&ret, a) {
 			break
 		}
 
@@ -94,7 +94,7 @@ func addAsMiddleware(ret *[]middleware, a interface{}) bool {
 	return false
 }
 
-func addAsLastMiddleware(ret *[]middleware, a interface{}) bool {
+func addAsHandler(ret *[]middleware, a interface{}) bool {
 	var handlerfunc http.HandlerFunc
 	if setIfConvertible(a, &handlerfunc) {
 		*ret = append(*ret, func(http.HandlerFunc) http.HandlerFunc {
