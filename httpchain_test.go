@@ -22,14 +22,14 @@ func genMiddleware(id string) func(http.HandlerFunc) http.HandlerFunc {
 
 var testData = "testdata"
 
-func check(t *testing.T, handler interface{}) {
+func check(t *testing.T, handler any) {
 	h := httpchain.Chain(
 		genMiddleware("1"),
 		nil,
-		[]interface{}{
+		[]any{
 			genMiddleware("2"),
 			genMiddleware("3"),
-			[]interface{}{
+			[]any{
 				genMiddleware("4"),
 			},
 			genMiddleware("5"),
@@ -125,9 +125,9 @@ func TestHandlerInMiddle(t *testing.T) {
 		defer func() { gotPanic = recover() != nil }()
 		httpchain.Chain(
 			identityMiddleware,
-			[]interface{}{
+			[]any{
 				identityMiddleware,
-				[]interface{}{
+				[]any{
 					identityMiddleware,
 					handler,
 					panicMiddleware,
